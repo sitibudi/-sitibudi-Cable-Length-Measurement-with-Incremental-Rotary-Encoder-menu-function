@@ -14,9 +14,9 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 //DEFINE PIN BUTTON 
 #define rst_button 7
-#define A_button 4  // 50 M
-#define B_button 5  // 70 M
-#define C_button 6  // 90 M
+#define down_button 4  // 50 M
+#define up_button 5  // 70 M
+#define select_button 6  // 90 M
 
 //DEFINE PIN LED INDIKATOR
 #define led_kuning 9
@@ -32,11 +32,13 @@ signed char pos = 0;
 double distance_M = 0;
 double result = 0;
 int rst_state = 0;
-int A_state = 0;
-int B_state = 0;
-int C_state = 0;
+int down_state = 0;
+int up_state = 0;
+int selectl_state = 0;
 int state = 0;
 
+int menu = 1;
+int page = 1;
 // DEFINE MILLIS()
 unsigned long current = 0;
 unsigned long pre_time = 0;
@@ -59,6 +61,185 @@ void interrupt() {
 }
 
 
+
+
+void reset(){
+    if (rst_state == LOW){
+          position=0; 
+         }
+}
+
+
+void updateMenu(){
+
+  digitalWrite(led_hijau,HIGH);
+  digitalWrite(led_kuning,LOW);
+  
+  switch(menu){
+      case 1:
+
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("> Pengukuran");
+      lcd.setCursor(0,1);
+      lcd.print(" 45 Meter");
+      
+      break;
+
+      
+      case 2: 
+
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("> 45 Meter");
+      lcd.setCursor(0,1);
+      lcd.print(" 50 Meter");
+      break;
+
+
+      case 3: 
+      
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(" 45 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("> 50 Meter");
+      break;
+
+
+      case 4: 
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("> 90 Meter");
+      lcd.setCursor(0,1);
+      lcd.print(" 100 Meter");
+      break;
+
+      case 5: 
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print(" 90 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("> 100 Meter");
+      break;
+    }
+}
+
+void hasil(int page){
+           distance_M = (position/10)*distanceC;
+    result = distance_M / 100;
+    lcd.print(result);
+
+    return result;
+}
+void Action(){
+  // jika ingin mengubah batas pengukuran ubah parameter result > x (x parameter nilai (meter))
+  
+    
+  switch(menu){
+      case 1:
+      
+      lcd.setCursor(0,0);
+      digitalWrite(led_hijau,LOW);
+      digitalWrite(led_kuning,HIGH);
+      lcd.clear();
+      reset();
+      
+    
+      lcd.print("PENGUKURAN");
+      lcd.setCursor(0,1);
+      lcd.print("METER:");
+      lcd.print(result);
+      
+      
+      break;
+
+      
+      case 2: 
+      digitalWrite(led_hijau,LOW);
+      digitalWrite(led_kuning,HIGH);
+      lcd.clear();
+      reset();
+      lcd.setCursor(0,0);
+      lcd.print("45 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("METER:");
+      lcd.print(result);
+     
+      if(result>45){
+        digitalWrite(buzzer,HIGH);
+      }
+      else{
+        digitalWrite(buzzer,LOW);
+      }
+      
+      break;
+
+
+      case 3: 
+      digitalWrite(led_hijau,LOW);
+      digitalWrite(led_kuning,HIGH);
+      lcd.clear();
+      reset();
+      lcd.setCursor(0,0);
+      lcd.print("50 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("METER:");
+      lcd.print(result);
+     
+      if(result>50){
+        digitalWrite(buzzer,HIGH);
+      }
+      else{
+        digitalWrite(buzzer,LOW);
+      }
+      break;
+
+
+      case 4: 
+      digitalWrite(led_hijau,LOW);
+      digitalWrite(led_kuning,HIGH);
+      lcd.clear();
+      reset();
+      
+      lcd.setCursor(0,0);
+      lcd.print("90 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("METER:");
+      lcd.print(result);
+      if(result>90){
+        digitalWrite(buzzer,HIGH);
+      }
+      else{
+        digitalWrite(buzzer,LOW);
+      }
+      
+      break;
+
+      case 5: 
+      digitalWrite(led_hijau,LOW);
+      digitalWrite(led_kuning,HIGH);
+      lcd.print(result);
+      
+      reset();
+      lcd.setCursor(0,0);
+      lcd.print("100 Meter");
+      lcd.setCursor(0,1);
+      lcd.print("METER:");
+      
+      if(result>100){
+        digitalWrite(buzzer,HIGH);
+      }
+      else{
+        digitalWrite(buzzer,LOW);
+      }
+      break;
+    }
+
+  
+}
+
+
 //=======================================DONE==============================================
 
 //=======================================MAIN PROGRAM===========================================
@@ -67,14 +248,15 @@ void interrupt() {
 void setup() {
   Serial.begin(9600);
   pinMode(rst_button, INPUT_PULLUP);
-  pinMode(A_button, INPUT_PULLUP);
-  pinMode(B_button, INPUT_PULLUP);
-  pinMode(C_button, INPUT_PULLUP);
+  pinMode(down_button, INPUT_PULLUP);
+  pinMode(up_button, INPUT_PULLUP);
+  pinMode(select_button, INPUT_PULLUP);
  
   pinMode(buzzer, OUTPUT);
  
   pinMode(led_kuning,OUTPUT);
   pinMode(led_hijau,OUTPUT);
+
   
   // Initialize encoder
   encoder.begin();
@@ -87,10 +269,11 @@ void setup() {
   lcd.backlight();
   lcd.setCursor(2,0);
   lcd.print("CABLE LENGTH");
-  lcd.setCursor(5,1);
+  lcd.setCursor(3,1);
   lcd.print("MEASUREMENT");
   delay(2000);
   lcd.clear();
+  updateMenu();
   
 }
 
@@ -98,104 +281,63 @@ void setup() {
 
 void loop() {
 
-    
+    // get the value length in meter
+      distance_M = (position/10)*distanceC;
+      result = distance_M / 100;
+    //==========================================
+   
    current = millis();
    if (current-pre_time>33){
         rst_state = digitalRead(rst_button);
-         A_state = digitalRead(A_button);
-         B_state = digitalRead(B_button);
-         C_state = digitalRead(C_button);
-   
-          if (rst_state == LOW){
-              lcd.clear();
-              position=0; 
-               state = 0;
-              }
+         down_state = digitalRead(down_button);
+         up_state = digitalRead(up_button);
+         selectl_state = digitalRead(select_button);
         pre_time = current;
    }
-
    
-    distance_M = (position/10)*distanceC;
-    result = distance_M / 100;
-    lcd.setCursor(0,1);
-    lcd.print("Meter:");
-    lcd.print(result);
-    Serial.println(position);
+    if (down_state==LOW and page==1){
+               menu++;
+               if(menu>5){
+                menu=1;
+                  }
+               updateMenu();
+               delay(100);
+               }
+
+          if (up_state==LOW and page==1 ){
+               menu--;
+               if(menu<1){
+                menu=5;
+              }
+              updateMenu();
+              delay(100);
+              
+          }
+          
+    if (selectl_state==LOW){
+              page=2;
+              state++;
+              lcd.clear();
+              if (state>1){
+              state=0;
+              }
+
+              if(state == 0){
+                Action();
+                page=2;
+                }
+                delay(100);
+
+
+              if(state == 1){
+                updateMenu();
+                page=1;
+                }
+                delay(100);
+
+    }
    
-    if (A_state==LOW){
-       lcd.clear();
-       position=0;
-      state = 1; 
-    }
-
-    else if (B_state==LOW){
-      lcd.clear();
-      position=0;
-      state = 2; 
-    }
-
-    else if (C_state==LOW){
-      lcd.clear();
-      position=0;
-      state = 3; 
-    }
-
-
-  // jika ingin mengubah batas pengukuran ubah parameter result > x (x parameter nilai (meter))
-    
-    switch(state){
-      case 0:
-      digitalWrite(buzzer,LOW);
-      digitalWrite(led_kuning,LOW);
-      digitalWrite(led_hijau,HIGH);
-      
-      break;
-
-      
-      case 1: 
-      
-      lcd.setCursor(5,0);
-      lcd.print("50 Meter");
-      digitalWrite(led_kuning,HIGH);
-      digitalWrite(led_hijau,LOW);
-      if(result>50){
-        digitalWrite(buzzer,HIGH);
-      }
-      else{
-        digitalWrite(buzzer,LOW);
-      }
-      break;
-
-
-      case 2: 
-      lcd.setCursor(5,0);
-      lcd.print("70 Meter");
-      digitalWrite(led_kuning,HIGH);
-      digitalWrite(led_hijau,LOW);
-      if(result>70){
-        digitalWrite(buzzer,HIGH);
-      }
-      else{
-        digitalWrite(buzzer,LOW);
-      }
-      break;
-
-
-      case 3: 
-      lcd.setCursor(5,0);
-      lcd.print("90 Meter");
-      digitalWrite(led_kuning,HIGH);
-      digitalWrite(led_hijau,LOW);
-      if(result>90){
-        digitalWrite(buzzer,HIGH);
-      }
-      else{
-        digitalWrite(buzzer,LOW);
-      }
-      break;
-    }
-    
-   
+              
 }
 
 //=======================================DONE==============================================
